@@ -1,0 +1,183 @@
+How many containers of antibiotics are currently available?
+╭────────────────╮
+│ quantityOnHand │
+╞════════════════╡
+│            100 │
+╰────────────────╯
+This query uses only the item table so no join is needed. The where clause finds the row whose
+itemDescription is 'bottle of antibiotics', and the select clause returns its quantityOnHand.
+
+Which volunteer(s), if any, have phone numbers that do not start with the number 2 and whose last name is not Jones. Query should retrieve names rather than ids.
+╭───────────────╮
+│ volunteerName │
+╞═══════════════╡
+│ Gene Lewin    │
+╰───────────────╯
+This query uses only the volunteer table, no join is needed.
+It excludes volunteers with a NULL telephone number, filters out telephone numbers beginning with 2,
+and excludes volunteer names ending in 'Jones'. In order to do so I would need the wildcard % in front
+of the filter elements. It returns volunteer names rather than IDs.
+
+Which volunteer(s) are working on transporting tasks? Query should retrieve names rather than ids.
+╭───────────────╮
+│ volunteerName │
+╞═══════════════╡
+│ George Brewer │
+╰───────────────╯
+The assignment table connects volunteer and task: assignment.volunteerId references volunteer.volunteerId,
+and assignment.taskCode references task.taskCode. A volunteer can have many assignments, and a task can have
+many assigned volunteers, so assignment represents their many-to-many relationship. I then JOIN task to
+task_type through taskTypeId to identify transporting tasks. DISTINCT prevents a volunteer's name from
+appearing more than once.
+
+Which task(s) have yet to be assigned to any volunteers (provide task descriptions, not the codes)?
+╭────────────────────────────────╮
+│        taskDescription         │
+╞════════════════════════════════╡
+│ Prepare 100 food packages      │
+│ Take packages to the warehouse │
+╰────────────────────────────────╯
+A task can be linked to many rows in assignment, while each assignment refers to one task through taskCode.
+I use a LEFT JOIN from task to assignment so that tasks with no assigned volunteers are still included.
+WHERE assignment.taskCode IS NULL keeps only those tasks without a matching assignment, and I display their
+descriptions.
+
+Which type(s) of package contain some kind of bottle?
+╭─────────────────╮
+│ packageTypeName │
+╞═════════════════╡
+│ food and water  │
+╰─────────────────╯
+Each package has one package type through packageTypeId, while a package type can describe many packages.
+I joined package_type to package, then package to package_contents using packageId. The package_contents table
+connects packages to items through itemId, since a package can contain multiple items and an item can appear
+in multiple packages. I filter descriptions containing 'bottle' and use DISTINCT to list each matching package
+type once.
+
+Which items, if any, are not in any packages? Answer should be item descriptions.
+╭───────────────────────╮
+│    itemDescription    │
+╞═══════════════════════╡
+│ bottle of antibiotics │
+│ bottle of aspirin     │
+│ flashlight            │
+│ pack of bandages      │
+╰───────────────────────╯
+The package_contents table connects items to packages: package_contents.itemId references item.itemId,
+and each item may appear in many package_contents rows. I LEFT JOIN item to package_contents to keep items
+even when they have never been packed. WHERE package_contents.packageId IS NULL identifies items with no
+matching package contents record, and I display their descriptions.
+
+Which task(s) are assigned to volunteer(s) that live in New Jersey (NJ)? Answer should have the task description and not the task ids.
+╭────────────────────────────────╮
+│        taskDescription         │
+╞════════════════════════════════╡
+│ Prepare 20 children's packages │
+│ Prepare 100 water packages     │
+│ Prepare 5,000 packages         │
+╰────────────────────────────────╯
+The assignment table links tasks and volunteers through taskCode and volunteerId. I JOIN task to assignment
+on taskCode, then assignment to volunteer on volunteerId. Since a task may have multiple volunteers, and
+volunteers may have multiple tasks, DISTINCT removes repeated task descriptions. The WHERE clause finds
+volunteer addresses ending in 'NJ'.
+
+Which volunteers began their assignments in the first half of 2021? Answer should have the volunteer names and not their ids.
+Output:
+╭───────────────╮
+│ volunteerName │
+╞═══════════════╡
+│ Joan Simmons  │
+│ Chris Jordan  │
+╰───────────────╯
+Each assignment belongs to one volunteer through volunteerId, while a volunteer may have multiple assignments.
+I joined volunteer and assignment using that ID, then check startDateTime for dates from January 1, 2021,
+through June 30, 2021. I return the matching volunteer names.
+
+Which volunteers have been assigned to tasks that include packing spam? Answer should have the volunteer names and not their ids.
+╭───────────────╮
+│ volunteerName │
+╞═══════════════╡
+│ Julie White   │
+│ Gerry Banks   │
+╰───────────────╯
+The assignment table links volunteers to tasks through volunteerId and taskCode. The package table also
+references taskCode, so I joined assignment to package to find packages made by each volunteer's assigned task. I then JOIN package to package_contents using packageId and JOIN package_contents to item using itemId. I filter for 'can of spam' and use DISTINCT so each matching volunteer appears once.
+
+Which item(s) (if any) have a total value of exactly $100 in one package? Answer should be item descriptions.
+╭─────────────────╮
+│ itemDescription │
+╞═════════════════╡
+│ Baby formula    │
+╰─────────────────╯
+The package_contents table links items to packages through itemId and packageId, and records the quantity of
+each item in each package. I JOIN item to package_contents on itemId to get each item's unit value.
+Multiplying itemValue by itemQuantity gives that item's total value within a single package.
+I keep rows equal to $100 and use DISTINCT to show each item description once.
+
+How many volunteers are assigned to tasks with each different status? The answer should show each different status and the number of volunteers sorted from highest to lowest.
+╭────────────────┬────────────────╮
+│ taskStatusName │ volunteerCount │
+╞════════════════╪════════════════╡
+│ open           │              4 │
+│ closed         │              3 │
+│ ongoing        │              2 │
+│ pending        │              1 │
+╰────────────────┴────────────────╯
+Each task references one task status through taskStatusId, while one status can apply to many tasks.
+I join task_status to task on taskStatusId, then task to assignment on taskCode to find the volunteers
+assigned to tasks with each status. I grouped by status and use COUNT(DISTINCT assignment.volunteerId) to avoid
+counting the same volunteer twice within one status. ORDER BY volunteerCount DESC places the largest counts first.
+
+Which task creates the heaviest set of packages and what is the weight? Show both the taskCode and the weight (You should be able to do this without using any sub-queries).
+╭──────────┬─────────────╮
+│ taskCode │ totalWeight │
+╞══════════╪═════════════╡
+│      106 │       308.0 │
+╰──────────┴─────────────╯
+Each package belongs to one task through package.taskCode, and one task may create several packages.
+Because package already contains both taskCode and packageWeight, no JOIN is needed. I grouped by
+taskCode, SUM the weights of its packages, then sort the totals from highest to lowest and use LIMIT 1
+to return the heaviest set.
+
+How many tasks are there that do not have a type of "packing"?
+╭──────────╮
+│ COUNT(*) │
+╞══════════╡
+│        3 │
+╰──────────╯
+Each task has one type through task.taskTypeId, and each task type can describe many tasks. I joined task to
+task_type using taskTypeId, filter out the type named 'packing', and use COUNT(*) to count the remaining tasks.
+
+Of those items that have been packed, which item (or items) were touched by fewer than 3 volunteers? Answer should be item descriptions.
+╭─────────────────╮
+│ itemDescription │
+╞═════════════════╡
+│ can of spam     │
+│ dried fruit     │
+│ men's coat      │
+│ sleeping bag    │
+│ tent            │
+│ women's coat    │
+╰─────────────────╯
+The package_contents table links items and packages through itemId and packageId. I joined item to
+package_contents, then package_contents to package, whose taskCode identifies the task that created each
+package. I left joined assignment on taskCode to find volunteers assigned to that task, keeping packed items
+even if no volunteers are assigned. I grouped by item and use COUNT(DISTINCT assignment.volunteerId) to count
+volunteers without duplicates. HAVING keeps items associated with fewer than three volunteers. Since actual
+item handling is not recorded, I assume volunteers assigned to the packing task handled the items in its packages.
+
+Which packages have a total value of more than 100? Show the packageIds and their value sorted from lowest to highest.
+╭───────────┬────────────╮
+│ packageId │ totalValue │
+╞═══════════╪════════════╡
+│         6 │      150.0 │
+│         2 │      151.0 │
+│         4 │      350.0 │
+│        10 │      750.0 │
+│         5 │     1420.0 │
+╰───────────┴────────────╯
+Each package_contents row belongs to one package through packageId and refers to one item through itemId.
+I joined package_contents to item on itemId to obtain each item's unit value, then grouped them by packageId.
+SUM(itemQuantity * itemValue) calculates the combined value of all items in each package.
+HAVING keeps packages worth more than $100, and ORDER BY totalValue ASC sorts them from lowest to highest.
+
